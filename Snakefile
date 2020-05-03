@@ -20,7 +20,7 @@ genome = config['genome']
 ## constructe the target if the inputs are fastqs
 bam = expand("01_bam/{sample}.bam", sample = SAMPLES)
 # raw_pairsam = expand("pairs-hg38/{sample}/{sample}.raw.pairsam.gz", sample = SAMPLES)
-selected_pairsam = expand("pairs-{genome}/{sample}/{sample}.selected.pairsam.gz", sample = SAMPLES)
+selected_pairsam = expand("pairs-{genome}/{sample}/{sample}.selected.pairsam.gz", sample = SAMPLES, genome = genome)
 
 TARGETS.extend(bam) ##append all list to 
 TARGETS.extend(selected_pairsam) ## check later
@@ -41,7 +41,7 @@ rule bwa_align:
         r1 = lambda wildcards: FILES[wildcards.sample]['R1'],
         r2 = lambda wildcards: FILES[wildcards.sample]['R2']
     output: "01_bam/{sample}.bam"
-    threads: 24
+    threads: 12
     message: "bwa {input}: {threads} threads"
     log:
          "00_log/{sample}.bwa"
@@ -60,8 +60,8 @@ rule prase_bam:
     threads: 5
     shell:
         """
-        pairtools parse -c {chrom.sizes}  \
-        --assembly hg38 --min-mapq 10 \
+        pairtools parse -c {chromsizes}  \
+        --assembly {genome} --min-mapq 1 \
         --max-molecule-size 2000 --max-inter-align-gap 20 \
         --walks-policy mask --no-flip --drop-seq --drop-sam  -o {output} {input}
         """
@@ -73,7 +73,7 @@ rule sort_pairsam:
     threads: 8
     shell:
         """
-        pairtools sort  --nproc 8  --memory 20G  -o {output} {input}  & 
+        pairtools sort  --nproc 8  --memory 20G  -o {output} {input}  
         """
 
 rule seleted_pairsam:
@@ -83,7 +83,7 @@ rule seleted_pairsam:
     threads: 5
     shell:
         """
-        pairtools  select '(pair_type=="UU") or (pair_type=="UR") or (pair_type=="RU")' -o {input}  {output}
+        pairtools  select '(pair_type=="UU") or (pair_type=="UR") or (pair_type=="RU")' -o  {output} {input}  
         """
 
 
