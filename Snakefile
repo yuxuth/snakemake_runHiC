@@ -63,7 +63,7 @@ rule prase_bam:
         """
         pairtools parse -c {chromsizes}  \
         --assembly {genome} --min-mapq 1 \
-        --max-molecule-size 2000 --max-inter-align-gap 20 \
+        --max-molecule-size 2000 --max-inter-align-gap 20 --drop-readid \
         --walks-policy mask --no-flip --drop-seq --drop-sam  -o {output} {input}
         """
 
