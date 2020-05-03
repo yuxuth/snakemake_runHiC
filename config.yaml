@@ -1,0 +1,10 @@
+
+BWA_INDEX: ~/almanlab/genome_ref/hg38_BWA_index/hg38.fa
+
+chromsizes : ~/almanlab/genome_ref/hg38_BWA_index/hg38.chrom.sizes
+genome: hg38
+
+
+SAMPLES_JSON: './samples.json'
+
+CLUSTER_JSON: './cluster.json'
