@@ -13,6 +13,7 @@ chromsizes = config['chromsizes']
 
 TARGETS = []
 genome = config['genome']
+frag_path = config['frag_path']
 
 ## test
 
@@ -41,7 +42,7 @@ rule bwa_align:
         r1 = lambda wildcards: FILES[wildcards.sample]['R1'],
         r2 = lambda wildcards: FILES[wildcards.sample]['R2']
     output: "01_bam/{sample}.bam"
-    threads: 12
+    threads: 10
     message: "bwa {input}: {threads} threads"
     log:
          "00_log/{sample}.bwa"
@@ -55,7 +56,7 @@ rule bwa_align:
 
 rule prase_bam:
     input:  "01_bam/{sample}.bam"
-    output: "pairs-hg38/{sample}/{sample}.raw.pairsam.gz"
+    output: temp("pairs-hg38/{sample}/{sample}.raw.pairsam.gz")
     message: "prase bam {input} "
     threads: 5
     shell:
@@ -86,4 +87,38 @@ rule seleted_pairsam:
         pairtools  select '(pair_type=="UU") or (pair_type=="UR") or (pair_type=="RU")' -o  {output} {input}  
         """
 
+rule restrict_pairsam:
+    input:  "pairs-hg38/{sample}/{sample}.selected.pairsam.gz"
+    output: "pairs-hg38/{sample}/{sample}.pairsam.gz", "pairs-hg38/{sample}/{sample}.select.samefrag.pairsam.gz"
+    message: "selected pairsam {input} "
+    threads: 5
+    shell:
+        """
+        pairtools restrict -f {frag_path} {input} |  \
+        pairtools select '(COLS[-6]==COLS[-3]) and (chrom1==chrom2)' \
+        --output-rest {output[0]} -o {output[1]} 
+        """
+
+rule deduplicated_pairsam:
+    input:  "pairs-hg38/{sample}/{sample}.pairsam.gz"
+    output: "filtered-hg38/{sample}.filtered.pairsam.gz", "filtered-hg38/{sample}.filtered.pairsam.gz.px2"
+    message: "dedup to filted {input} "
+    threads: 5
+    shell:
+        """
+         pairtools dedup --max-mismatch 1 --method max    -o {output[0]} {input}
+         pairix {output[0]}
+        """
+
+
+rule load_cooler:
+    input:  "filtered-hg38/{sample}.filtered.pairsam.gz", "filtered-hg38/{sample}.filtered.pairsam.gz.px2"
+    output: "coolers-hg38/{sample}.cool"
+    message: "cooler {input} "
+    threads: 10
+    shell:
+        """
+        cooler cload pairix --assembly hg38 --nproc {threads} \
+                   --max-split 2 {chromsizes}:10000 {input} {output}
+        """
 
