@@ -107,7 +107,7 @@ rule deduplicated_pairsam:
     shell:
         """
          pairtools dedup --max-mismatch 1 --method max    -o {output[0]} {input}
-         pairix {output[0]}
+         pairix -t pair  {output[0]}
         """
 
 
@@ -119,6 +119,6 @@ rule load_cooler:
     shell:
         """
         cooler cload pairix --assembly hg38 --nproc {threads} \
-                   --max-split 2 {chromsizes}:10000 {input} {output}
+                   --max-split 2 {chromsizes}:10000 {input[0]} {output}
         """
 
