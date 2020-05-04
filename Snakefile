@@ -110,7 +110,7 @@ rule deduplicated_pairsam:
         """
 
 rule flip_pairsam:
-    input:  "pairs-hg38/{sample}.filtered.pairsam.gz"
+    input:  "filtered-hg38/{sample}.filtered.pairsam.gz"
     output: "filtered-hg38/{sample}.filtered.flip.pairs.gz", "filtered-hg38/{sample}.filtered.flip.pairs.gz.px2"
     message: "dedup to filted {input} "
     threads: 5
