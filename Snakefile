@@ -23,8 +23,8 @@ bam = expand("01_bam/{sample}.bam", sample = SAMPLES)
 # raw_pairsam = expand("pairs-hg38/{sample}/{sample}.raw.pairsam.gz", sample = SAMPLES)
 selected_pairsam = expand("pairs-{genome}/{sample}/{sample}.selected.pairsam.gz", sample = SAMPLES, genome = genome)
 cool = expand("coolers-hg38/{sample}.cool", sample = SAMPLES)
-cool40k = expand("coolers-hg38/{sample}.40k.cool", sample = SAMPLES) ## will lead to keyerror
-cool40k = expand("coolers-hg38_40k/{sample}.cool", sample = SAMPLES
+# cool40k = expand("coolers-hg38/{sample}.40k.cool", sample = SAMPLES) ## will lead to keyerror
+cool40k = expand("coolers-hg38_40k/{sample}.cool", sample = SAMPLES)
 TARGETS.extend(bam) ##append all list to 
 TARGETS.extend(selected_pairsam) ## check later
 TARGETS.extend(cool)
@@ -151,5 +151,17 @@ rule load_cooler:
         cooler cload pairix --assembly hg38 --nproc {threads} \
                    --max-split 2 {chromsizes}:10000 {input[0]} {output}
         """
+      
+                 
         
+rule load_cooler_40k:
+    input:  "filtered-hg38/{sample}.filtered.flip.sorted.pairs.gz", "filtered-hg38/{sample}.filtered.flip.sorted.pairs.gz.px2"
+    output: "coolers-hg38_40k/{sample}.cool"
+    message: "cooler {input} "
+    threads: 10
+    shell:
+        """
+        cooler cload pairix --assembly hg38 --nproc {threads} \
+                   --max-split 2 {chromsizes}:40000 {input[0]} {output}
+        """
 
