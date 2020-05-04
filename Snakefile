@@ -101,18 +101,27 @@ rule restrict_pairsam:
 
 rule deduplicated_pairsam:
     input:  "pairs-hg38/{sample}/{sample}.pairsam.gz"
-    output: "filtered-hg38/{sample}.filtered.pairsam.gz", "filtered-hg38/{sample}.filtered.pairsam.gz.px2"
+    output: "filtered-hg38/{sample}.filtered.pairsam.gz"
     message: "dedup to filted {input} "
     threads: 5
     shell:
         """
          pairtools dedup --max-mismatch 1 --method max    -o {output[0]} {input}
+        """
+
+rule flip_pairsam:
+    input:  "pairs-hg38/{sample}.filtered.pairsam.gz"
+    output: "filtered-hg38/{sample}.filtered.flip.pairs.gz", "filtered-hg38/{sample}.filtered.flip.pairs.gz.px2"
+    message: "dedup to filted {input} "
+    threads: 5
+    shell:
+        """
+         pairtools flip -c {chromsizes}   -o {output[0]} {input}
          pairix -t pair  {output[0]}
         """
 
-
 rule load_cooler:
-    input:  "filtered-hg38/{sample}.filtered.pairsam.gz", "filtered-hg38/{sample}.filtered.pairsam.gz.px2"
+    input:  "filtered-hg38/{sample}.filtered.flip.pairs.gz", "filtered-hg38/{sample}.filtered.flip.pairs.gz.px2"
     output: "coolers-hg38/{sample}.cool"
     message: "cooler {input} "
     threads: 10
