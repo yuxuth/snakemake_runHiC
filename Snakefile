@@ -23,7 +23,8 @@ bam = expand("01_bam/{sample}.bam", sample = SAMPLES)
 # raw_pairsam = expand("pairs-hg38/{sample}/{sample}.raw.pairsam.gz", sample = SAMPLES)
 selected_pairsam = expand("pairs-{genome}/{sample}/{sample}.selected.pairsam.gz", sample = SAMPLES, genome = genome)
 cool = expand("coolers-hg38/{sample}.cool", sample = SAMPLES)
-# cool40k = expand("coolers-hg38/{sample}.40k.cool", sample = SAMPLES)
+cool40k = expand("coolers-hg38/{sample}.40k.cool", sample = SAMPLES)
+
 TARGETS.extend(bam) ##append all list to 
 TARGETS.extend(selected_pairsam) ## check later
 TARGETS.extend(cool)
