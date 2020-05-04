@@ -118,9 +118,20 @@ rule flip_pairsam:
         """
          pairtools flip -c {chromsizes}   -o {output[0]} {input}
         """
-rule index_pairsam:
+        
+rule sort_pairsam:
     input:  "filtered-hg38/{sample}.filtered.flip.pairs.gz"
-    output: "filtered-hg38/{sample}.filtered.flip.pairs.gz.px2"
+    output: "filtered-hg38/{sample}.filtered.flip.sorted.pairs.gz"
+    message: "sort pairsam {input} "
+    threads: 8
+    shell:
+        """
+        pairtools sort  --nproc 8  --memory 20G  -o {output} {input}  
+        """
+        
+rule index_pairsam:
+    input:  "filtered-hg38/{sample}.filtered.flip.sorted.pairs.gz"
+    output: "filtered-hg38/{sample}.filtered.flip.sorted.pairs.gz.px2"
     message: "dedup to filted {input} "
     threads: 5
     shell:
@@ -129,7 +140,7 @@ rule index_pairsam:
         """
         
 rule load_cooler:
-    input:  "filtered-hg38/{sample}.filtered.flip.pairs.gz", "filtered-hg38/{sample}.filtered.flip.pairs.gz.px2"
+    input:  "filtered-hg38/{sample}.filtered.flip.sorted.pairs.gz", "filtered-hg38/{sample}.filtered.flip.sorted.pairs.gz.px2"
     output: "coolers-hg38/{sample}.cool"
     message: "cooler {input} "
     threads: 10
