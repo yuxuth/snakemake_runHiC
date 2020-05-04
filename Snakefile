@@ -162,4 +162,3 @@ rule load_cooler_40k:
         cooler cload pairix --assembly hg38 --nproc {threads} \
                    --max-split 2 {chromsizes}:40000 {input[0]} {output}
         """
-
