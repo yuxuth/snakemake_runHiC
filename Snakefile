@@ -117,7 +117,7 @@ rule flip_pairsam:
     shell:
         """
          pairtools flip -c {chromsizes}   -o {output[0]} {input}
-         pairix -t pair  {output[0]}
+         pairix -p pairs  {output[0]}
         """
 
 rule load_cooler:
