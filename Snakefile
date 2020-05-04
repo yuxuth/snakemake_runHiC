@@ -119,7 +119,7 @@ rule flip_pairsam:
          pairtools flip -c {chromsizes}   -o {output[0]} {input}
         """
         
-rule sort_pairsam:
+rule sort_pairsam_2:
     input:  "filtered-hg38/{sample}.filtered.flip.pairs.gz"
     output: "filtered-hg38/{sample}.filtered.flip.sorted.pairs.gz"
     message: "sort pairsam {input} "
