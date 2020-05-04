@@ -149,4 +149,15 @@ rule load_cooler:
         cooler cload pairix --assembly hg38 --nproc {threads} \
                    --max-split 2 {chromsizes}:10000 {input[0]} {output}
         """
+        
+rule load_cooler_40k:
+    input:  "filtered-hg38/{sample}.filtered.flip.sorted.pairs.gz", "filtered-hg38/{sample}.filtered.flip.sorted.pairs.gz.px2"
+    output: "coolers-hg38/{sample}_40k.cool"
+    message: "cooler {input} "
+    threads: 10
+    shell:
+        """
+        cooler cload pairix --assembly hg38 --nproc {threads} \
+                   --max-split 2 {chromsizes}:40000 {input[0]} {output}
+        """
 
