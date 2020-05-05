@@ -14,21 +14,28 @@ chromsizes = config['chromsizes']
 TARGETS = []
 genome = config['genome']
 frag_path = config['frag_path']
+cool_bin = config['cool_bin']
 
 ## test
 
 
 ## constructe the target if the inputs are fastqs
-bam = expand("01_bam/{sample}.bam", sample = SAMPLES)
+# bam = expand("01_bam/{sample}.bam", sample = SAMPLES)
 # raw_pairsam = expand("pairs-hg38/{sample}/{sample}.raw.pairsam.gz", sample = SAMPLES)
-selected_pairsam = expand("pairs-{genome}/{sample}/{sample}.selected.pairsam.gz", sample = SAMPLES, genome = genome)
-cool = expand("coolers-hg38/{sample}.cool", sample = SAMPLES)
+
+peak_pairs = expand("peaks-{genome}/{sample}.final.pairs.gz", sample = SAMPLES, genome = genome)
+
+all_pairs = expand("pairs-{genome}/{sample}.valid.pairs.gz", sample = SAMPLES, genome = genome)
+
+cool = expand("coolers-{genome}/{sample}.{cool_bin}.cool", sample = SAMPLES, cool_bin = cool_bin, genome = genome)
+
+# TARGETS.extend(bam) ##append all list to 
+TARGETS.extend(peak_pairs) ## check later
 # cool40k = expand("coolers-hg38/{sample}.40k.cool", sample = SAMPLES) ## will lead to keyerror
-cool40k = expand("coolers-hg38_40k/{sample}.cool", sample = SAMPLES)
-TARGETS.extend(bam) ##append all list to 
-TARGETS.extend(selected_pairsam) ## check later
+# cool40k = expand("coolers-hg38_40k/{sample}.cool", sample = SAMPLES)
+
+TARGETS.extend(all_pairs)
 TARGETS.extend(cool)
-TARGETS.extend(cool40k)
 
 
 localrules: all
@@ -56,9 +63,9 @@ rule bwa_align:
         """
 
 
-rule prase_bam:
+rule prase_bam_no_flip: ## no flip to makesure the R1 R2 position for the peak calling
     input:  "01_bam/{sample}.bam"
-    output: temp("pairs-hg38/{sample}/{sample}.raw.pairsam.gz")
+    output: temp("pairs-{genome}/{sample}.raw.pairsam.gz")
     message: "prase bam {input} "
     threads: 5
     shell:
@@ -66,22 +73,57 @@ rule prase_bam:
         pairtools parse -c {chromsizes}  \
         --assembly {genome} --min-mapq 1 \
         --max-molecule-size 2000 --max-inter-align-gap 20 --drop-readid \
-        --walks-policy mask --no-flip --drop-seq --drop-sam  -o {output} {input}
+        --walks-policy mask --no-flip --drop-seq --drop-sam  -o {output} {input}  
         """
 
-rule sort_pairsam:
-    input:  "pairs-hg38/{sample}/{sample}.raw.pairsam.gz"
-    output: "pairs-hg38/{sample}/{sample}.sort.pairsam.gz"
-    message: "sort pairsam {input} "
+
+rule flip_pairsam_sort:
+    input:  "pairs-{genome}/{sample}.raw.pairsam.gz"
+    output: "pairs-{genome}/{sample}.sorted.pairs.gz"
+    message: "flip to filted {input} "
     threads: 8
     shell:
         """
-        pairtools sort  --nproc 8  --memory 20G  -o {output} {input}  
+         pairtools flip -c {chromsizes} {input} | \
+         pairtools sort  --nproc 8  --memory 20G  -o {output}
         """
 
-rule seleted_pairsam:
-    input:  "pairs-hg38/{sample}/{sample}.sort.pairsam.gz"
-    output: "pairs-hg38/{sample}/{sample}.selected.pairsam.gz"
+rule R2peak_pairs_sort_mapping_filter:
+    input:  "pairs-{genome}/{sample}.raw.pairsam.gz"
+    output: "peaks-{genome}/{sample}.sorted.pairs.gz"
+    message: "flip to filted {input} "
+    threads: 8
+    shell:
+        """
+         pairtools select '(pair_type=="UU") or (pair_type=="UR") or (pair_type=="RU")' {input} | \
+         pairtools sort  --nproc 8  --memory 20G  -o {output}
+        """
+
+rule R2peak_pairs_enzyme_fragment_dedup:
+    input:  "peaks-{genome}/{sample}.sorted.pairs.gz"
+    output: "peaks-{genome}/{sample}.final.pairs.gz"
+    message: "flip to filted {input} "
+    threads: 8
+    shell:
+        """
+         pairtools dedup --max-mismatch 1 --method max {input} | \
+         pairtools restrict -f {frag_path} -o {output}
+        """
+
+
+# rule sort_pairsam:
+#     input:  "pairs-{genome}/{sample}/{sample}.raw.pairsam.gz"
+#     output: "pairs-{genome}/{sample}/{sample}.sort.pairsam.gz"
+#     message: "sort pairsam {input} "
+#     threads: 8
+#     shell:
+#         """
+#         pairtools sort  --nproc 8  --memory 20G  -o {output} {input}  
+#         """
+
+rule mapping_filter_pairs:
+    input:  "pairs-{genome}/{sample}.sorted.pairs.gz"
+    output: "pairs-{genome}/{sample}.selected.pairs.gz"
     message: "selected pairsam {input} "
     threads: 5
     shell:
@@ -89,79 +131,62 @@ rule seleted_pairsam:
         pairtools  select '(pair_type=="UU") or (pair_type=="UR") or (pair_type=="RU")' -o  {output} {input}  
         """
 
-rule restrict_pairsam:
-    input:  "pairs-hg38/{sample}/{sample}.selected.pairsam.gz"
-    output: "pairs-hg38/{sample}/{sample}.pairsam.gz", "pairs-hg38/{sample}/{sample}.select.samefrag.pairsam.gz"
+rule enzyme_fragment_detection:
+    input:  "pairs-{genome}/{sample}.selected.pairs.gz"
+    output: valid = "pairs-{genome}/{sample}.valid.pairs.gz", same_f = "pairs-{genome}/{sample}.samefrag.pairs.gz"
     message: "selected pairsam {input} "
     threads: 5
     shell:
         """
         pairtools restrict -f {frag_path} {input} |  \
         pairtools select '(COLS[-6]==COLS[-3]) and (chrom1==chrom2)' \
-        --output-rest {output[0]} -o {output[1]} 
+        --output-rest {output[valid]} -o {output[same_f]} 
         """
 
-rule deduplicated_pairsam:
-    input:  "pairs-hg38/{sample}/{sample}.pairsam.gz"
-    output: "filtered-hg38/{sample}.filtered.pairsam.gz"
+rule dedup_pairs:
+    input:  "pairs-{genome}/{sample}.valid.pairs.gz"
+    output: "filtered-{genome}/{sample}.valid.pairs.gz"
     message: "dedup to filted {input} "
     threads: 5
     shell:
         """
-         pairtools dedup --max-mismatch 1 --method max    -o {output[0]} {input}
+         pairtools dedup --max-mismatch 1 --method max -o {output[0]} {input}
         """
 
-rule flip_pairsam:
-    input:  "filtered-hg38/{sample}.filtered.pairsam.gz"
-    output: "filtered-hg38/{sample}.filtered.flip.pairs.gz"
+
+        
+rule index_pairs:
+    input:  "filtered-{genome}/{sample}.valid.pairs.gz"
+    output: "filtered-{genome}/{sample}.valid.pairs.gz.px2"
     message: "dedup to filted {input} "
     threads: 5
     shell:
         """
-         pairtools flip -c {chromsizes}   -o {output[0]} {input}
-        """
-        
-rule sort_pairsam_2:
-    input:  "filtered-hg38/{sample}.filtered.flip.pairs.gz"
-    output: "filtered-hg38/{sample}.filtered.flip.sorted.pairs.gz"
-    message: "sort pairsam {input} "
-    threads: 8
-    shell:
-        """
-        pairtools sort  --nproc 8  --memory 20G  -o {output} {input}  
-        """
-        
-rule index_pairsam:
-    input:  "filtered-hg38/{sample}.filtered.flip.sorted.pairs.gz"
-    output: "filtered-hg38/{sample}.filtered.flip.sorted.pairs.gz.px2"
-    message: "dedup to filted {input} "
-    threads: 5
-    shell:
-        """
-         pairix -p pairs     {input}
+         pairix -p pairs  {input}
         """
         
 rule load_cooler:
-    input:  "filtered-hg38/{sample}.filtered.flip.sorted.pairs.gz", "filtered-hg38/{sample}.filtered.flip.sorted.pairs.gz.px2"
-    output: "coolers-hg38/{sample}.cool"
+    input:  "filtered-{genome}/{sample}.valid.pairs.gz", "filtered-{genome}/{sample}.valid.pairs.gz.px2"
+    output: "coolers-{genome}/{sample}.{cool_bin}.cool"
     message: "cooler {input} "
+    params: res = {cool_bin}
     threads: 10
     shell:
         """
         cooler cload pairix --assembly hg38 --nproc {threads} \
-                   --max-split 2 {chromsizes}:10000 {input[0]} {output}
+                   --max-split 2 {chromsizes}:{params.res} {input[0]} {output}
         """
       
                  
         
-rule load_cooler_40k:
-    input:  "filtered-hg38/{sample}.filtered.flip.sorted.pairs.gz", "filtered-hg38/{sample}.filtered.flip.sorted.pairs.gz.px2"
-    output: "coolers-hg38_40k/{sample}.cool"
-    message: "cooler {input} "
-    threads: 10
-    shell:
-        """
-        cooler cload pairix --assembly hg38 --nproc {threads} \
-                   --max-split 2 {chromsizes}:40000 {input[0]} {output}
-        """
+# rule load_cooler_40k:
+#     input:  "filtered-hg38/{sample}.filtered.flip.sorted.pairs.gz", "filtered-hg38/{sample}.filtered.flip.sorted.pairs.gz.px2"
+#     output: "coolers-hg38_40k/{sample}.cool"
+#     message: "cooler {input} "
+#     threads: 10
+#     shell:
+#         """
+#         cooler cload pairix --assembly hg38 --nproc {threads} \
+#                    --max-split 2 {chromsizes}:40000 {input[0]} {output}
+#         """
 
