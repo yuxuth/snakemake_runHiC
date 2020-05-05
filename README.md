@@ -1,5 +1,12 @@
-# snakme-ChIPseq 
+# snakme-runhic
 
-adapt from Ming Tang's repo [pyflow-CHIPseq](https://github.com/crazyhottommy/pyflow-ChIPseq).
+adapt from xiaotao's repo [runHiC](http://xiaotaowang.github.io/HiC_pipeline/).
+
+for gcb cluster submit the jobs as 
+
+modify the resource for each rule as needed.
+
+snakemake -j 10  --cluster-config cluster.json \
+ --cluster "sbatch -J {cluster.job} --mem={cluster.mem} -N 1 -n {threads}  -o {cluster.out} -e  {cluster.err} " 
 
 
