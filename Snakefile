@@ -51,7 +51,7 @@ rule bwa_align:
         r1 = lambda wildcards: FILES[wildcards.sample]['R1'],
         r2 = lambda wildcards: FILES[wildcards.sample]['R2']
     output: "01_bam/{sample}.bam"
-    threads: 10
+    threads: 24
     message: "bwa {input}: {threads} threads"
     log:
          "00_log/{sample}.bwa"
@@ -85,7 +85,7 @@ rule flip_pairsam_sort:
     shell:
         """
          pairtools flip -c {chromsizes} {input} | \
-         pairtools sort  --nproc 8  --memory 20G  -o {output}
+         pairtools sort  --nproc 8  --memory 15G  -o {output}
         """
 
 rule R2peak_pairs_sort_mapping_filter:
@@ -96,7 +96,7 @@ rule R2peak_pairs_sort_mapping_filter:
     shell:
         """
          pairtools select '(pair_type=="UU") or (pair_type=="UR") or (pair_type=="RU")' {input} | \
-         pairtools sort  --nproc 8  --memory 20G  -o {output}
+         pairtools sort  --nproc 8  --memory 15G  -o {output}
         """
 
 rule R2peak_pairs_enzyme_fragment_dedup:
