@@ -1,8 +1,8 @@
 
-BWA_INDEX: ~/almanlab/genome_ref/hg38_BWA_index/hg38.fa
+BWA_INDEX: /home/yx157/data/Index/mm10/mm10.fa
 frag_path: /home/gb148/almanlab/genome_ref/hg38.hindiii.bed
-chromsizes : ~/almanlab/genome_ref/hg38_BWA_index/hg38.chrom.sizes
-genome: hg38
+chromsizes : /home/yx157/data/Index/mm10/mm10.fa/mm10.chrom.sizes
+genome: mm10
 cool_bin: 10000
 
 SAMPLES_JSON: './samples.json'

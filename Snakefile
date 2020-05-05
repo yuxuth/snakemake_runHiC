@@ -35,7 +35,7 @@ TARGETS.extend(peak_pairs) ## check later
 # cool40k = expand("coolers-hg38_40k/{sample}.cool", sample = SAMPLES)
 
 TARGETS.extend(all_pairs)
-TARGETS.extend(cool)
+# TARGETS.extend(cool)
 
 
 localrules: all
@@ -51,7 +51,7 @@ rule bwa_align:
         r1 = lambda wildcards: FILES[wildcards.sample]['R1'],
         r2 = lambda wildcards: FILES[wildcards.sample]['R2']
     output: "01_bam/{sample}.bam"
-    threads: 10
+    threads: 24
     message: "bwa {input}: {threads} threads"
     log:
          "00_log/{sample}.bwa"
