@@ -70,6 +70,7 @@ rule prase_bam_no_flip: ## no flip to makesure the R1 R2 position for the peak c
     threads: 5
     shell:
         """
+        module load samtools
         pairtools parse -c {chromsizes}  \
         --assembly {genome} --min-mapq 1 \
         --max-molecule-size 2000 --max-inter-align-gap 20 --drop-readid \
