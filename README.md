@@ -2,7 +2,7 @@
 
 adapt from xiaotao's repo [runHiC](http://xiaotaowang.github.io/HiC_pipeline/).
 
-for gcb cluster submit the jobs as 
+for gcb cluster submit the jobs using sbatch 
 
 modify the resource for each rule as needed.
 
