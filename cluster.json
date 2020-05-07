@@ -9,6 +9,10 @@
         "bwa_align":
     {
         "mem": "20G"
+    },
+    "flip_pairsam_sort":
+    {
+        "mem": "30G"
     }
 
 }

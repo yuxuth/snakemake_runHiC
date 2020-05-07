@@ -23,20 +23,26 @@ cool_bin = config['cool_bin']
 # bam = expand("01_bam/{sample}.bam", sample = SAMPLES)
 # raw_pairsam = expand("pairs-hg38/{sample}/{sample}.raw.pairsam.gz", sample = SAMPLES)
 
-peak_pairs = expand("peaks-{genome}/{sample}.final.pairs.gz", sample = SAMPLES, genome = genome)
+# peak_pairs = expand("peaks-{genome}/{sample}.final.pairs.gz", sample = SAMPLES, genome = genome)
 
-all_pairs = expand("pairs-{genome}/{sample}.valid.pairs.gz", sample = SAMPLES, genome = genome)
-
-cool = expand("coolers-{genome}/{sample}.{cool_bin}.cool", sample = SAMPLES, cool_bin = cool_bin, genome = genome)
+# all_pairs = expand("pairs-{genome}/{sample}.valid.pairs.gz", sample = SAMPLES, genome = genome)
+deup_pairs = expand("filtered-{genome}/{sample}.dedup.pairs.gz", sample = SAMPLES, genome = genome)
+# cool = expand("coolers-{genome}/{sample}.{cool_bin}.cool", sample = SAMPLES, cool_bin = cool_bin, genome = genome)
 
 # TARGETS.extend(bam) ##append all list to 
-TARGETS.extend(peak_pairs) ## check later
+# TARGETS.extend(peak_pairs) ## check later
 # cool40k = expand("coolers-hg38/{sample}.40k.cool", sample = SAMPLES) ## will lead to keyerror
 # cool40k = expand("coolers-hg38_40k/{sample}.cool", sample = SAMPLES)
 
-TARGETS.extend(all_pairs)
-TARGETS.extend(cool)
 
+# TARGETS.extend(all_pairs)
+# TARGETS.extend(cool)
+TARGETS.extend(deup_pairs)
+
+stat1 = expand("pairs-{genome}/{sample}.raw.pairsam.stat", sample = SAMPLES, genome = genome)
+stat2 = expand("filtered-{genome}/{sample}.dedup.pairs.stat", sample = SAMPLES, genome = genome)
+TARGETS.extend(stat1)
+TARGETS.extend(stat2)
 
 localrules: all
 
@@ -65,7 +71,7 @@ rule bwa_align:
 
 rule prase_bam_no_flip: ## no flip to makesure the R1 R2 position for the peak calling
     input:  "01_bam/{sample}.bam"
-    output: temp("pairs-{genome}/{sample}.raw.pairsam.gz")
+    output: ("pairs-{genome}/{sample}.raw.pairsam.gz")
     message: "prase bam {input} "
     threads: 5
     shell:
@@ -74,6 +80,16 @@ rule prase_bam_no_flip: ## no flip to makesure the R1 R2 position for the peak c
         --assembly {genome} --min-mapq 1 \
         --max-molecule-size 2000 --max-inter-align-gap 20 --drop-readid \
         --walks-policy mask --no-flip --drop-seq --drop-sam  -o {output} {input}  
+        """
+
+rule stat1 :
+    input:  "pairs-{genome}/{sample}.raw.pairsam.gz"
+    output: "pairs-{genome}/{sample}.raw.pairsam.stat"
+    message: "stat1 bam {input} "
+    threads: 5
+    shell:
+        """
+        pairtools stats -o {output} {input}  
         """
 
 
@@ -85,51 +101,30 @@ rule flip_pairsam_sort:
     shell:
         """
          pairtools flip -c {chromsizes} {input} | \
+         pairtools select '(pair_type=="UU") or (pair_type=="UR") or (pair_type=="RU")' | \
          pairtools sort  --nproc 8  --memory 15G  -o {output}
         """
 
-rule R2peak_pairs_sort_mapping_filter:
-    input:  "pairs-{genome}/{sample}.raw.pairsam.gz"
-    output: "peaks-{genome}/{sample}.sorted.pairs.gz"
-    message: "flip to filted {input} "
-    threads: 8
-    shell:
-        """
-         pairtools select '(pair_type=="UU") or (pair_type=="UR") or (pair_type=="RU")' {input} | \
-         pairtools sort  --nproc 8  --memory 15G  -o {output}
-        """
-
-rule R2peak_pairs_enzyme_fragment_dedup:
-    input:  "peaks-{genome}/{sample}.sorted.pairs.gz"
-    output: "peaks-{genome}/{sample}.final.pairs.gz"
-    message: "flip to filted {input} "
-    threads: 8
-    shell:
-        """
-         pairtools dedup --max-mismatch 1 --method max {input} | \
-         pairtools restrict -f {frag_path} -o {output}
-        """
-
-
-# rule sort_pairsam:
-#     input:  "pairs-{genome}/{sample}/{sample}.raw.pairsam.gz"
-#     output: "pairs-{genome}/{sample}/{sample}.sort.pairsam.gz"
-#     message: "sort pairsam {input} "
-#     threads: 8
-#     shell:
-#         """
-#         pairtools sort  --nproc 8  --memory 20G  -o {output} {input}  
-#         """
-
-rule mapping_filter_pairs:
+rule dedup_pairs:
     input:  "pairs-{genome}/{sample}.sorted.pairs.gz"
-    output: "pairs-{genome}/{sample}.selected.pairs.gz"
-    message: "selected pairsam {input} "
+    output: "filtered-{genome}/{sample}.dedup.pairs.gz"
+    message: "dedup to filted {input} "
     threads: 5
     shell:
         """
-        pairtools  select '(pair_type=="UU") or (pair_type=="UR") or (pair_type=="RU")' -o  {output} {input}  
+         pairtools dedup --max-mismatch 1 --method max -o {output[0]} {input}
         """
+
+rule stat2 :
+    input:  "filtered-{genome}/{sample}.dedup.pairs.gz"
+    output: "filtered-{genome}/{sample}.dedup.pairs.stat"
+    message: "stat1 bam {input} "
+    threads: 5
+    shell:
+        """
+        pairtools stats -o {output} {input}  
+        """
+
 
 rule enzyme_fragment_detection:
     input:  "pairs-{genome}/{sample}.selected.pairs.gz"
@@ -143,15 +138,44 @@ rule enzyme_fragment_detection:
         --output-rest {output[valid]} -o {output[same_f]} 
         """
 
-rule dedup_pairs:
-    input:  "pairs-{genome}/{sample}.valid.pairs.gz"
-    output: "filtered-{genome}/{sample}.valid.pairs.gz"
-    message: "dedup to filted {input} "
-    threads: 5
+
+
+
+
+
+
+rule R2peak_pairs_enzyme_fragment_dedup:
+    input:  "peaks-{genome}/{sample}.sorted.pairs.gz"
+    output: "peaks-{genome}/{sample}.final.pairs.gz"
+    message: "flip to filted {input} "
+    threads: 8
     shell:
         """
-         pairtools dedup --max-mismatch 1 --method max -o {output[0]} {input}
+         pairtools dedup --max-mismatch 1 --method max {input} | \
+         pairtools restrict -f {frag_path} -o {output}
         """
+
+rule R2peak_pairs_sort_mapping_filter:
+    input:  "pairs-{genome}/{sample}.raw.pairsam.gz"
+    output: "peaks-{genome}/{sample}.sorted.pairs.gz"
+    message: "flip to filted {input} "
+    threads: 8
+    shell:
+        """
+         pairtools select '(pair_type=="UU") or (pair_type=="UR") or (pair_type=="RU")' {input} | \
+         pairtools sort  --nproc 8  --memory 15G  -o {output}
+        """
+
+# rule sort_pairsam:
+#     input:  "pairs-{genome}/{sample}/{sample}.raw.pairsam.gz"
+#     output: "pairs-{genome}/{sample}/{sample}.sort.pairsam.gz"
+#     message: "sort pairsam {input} "
+#     threads: 8
+#     shell:
+#         """
+#         pairtools sort  --nproc 8  --memory 20G  -o {output} {input}  
+#         """
+
 
 
         
