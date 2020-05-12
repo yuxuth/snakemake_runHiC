@@ -25,6 +25,7 @@ cool_bin = config['cool_bin']
 
 peak_pairs = expand("peaks-{genome}/{sample}.final.pairs.gz", sample = SAMPLES, genome = genome)
 all_pairs = expand("filtered-{genome}/{sample}.valid.pairs.gz", sample = SAMPLES, genome = genome)
+cool = expand( "coolers-{genome}/{sample}.{cool_bin}.cool", sample = SAMPLES, genome = genome ,cool_bin = cool_bin)
 # deup_pairs = expand("filtered-{genome}/{sample}.dedup.pairs.gz", sample = SAMPLES, genome = genome)
 # cool = expand("coolers-{genome}/{sample}.{cool_bin}.cool", sample = SAMPLES, cool_bin = cool_bin, genome = genome)
 
@@ -36,12 +37,15 @@ all_pairs = expand("filtered-{genome}/{sample}.valid.pairs.gz", sample = SAMPLES
 
 # TARGETS.extend(all_pairs)
 # TARGETS.extend(cool)
-TARGETS.extend(deup_pairs)
+# TARGETS.extend(deup_pairs)
 
 stat1 = expand("pairs-{genome}/{sample}.raw.pairsam.stat", sample = SAMPLES, genome = genome)
-stat2 = expand("filtered-{genome}/{sample}.dedup.pairs.stat", sample = SAMPLES, genome = genome)
+stat2 = expand("filtered-{genome}/{sample}.valid.pairs.stat", sample = SAMPLES, genome = genome)
 TARGETS.extend(stat1)
 TARGETS.extend(stat2)
+TARGETS.extend(peak_pairs)
+TARGETS.extend(cool)
+
 
 localrules: all
 
