@@ -23,10 +23,9 @@ cool_bin = config['cool_bin']
 # bam = expand("01_bam/{sample}.bam", sample = SAMPLES)
 # raw_pairsam = expand("pairs-hg38/{sample}/{sample}.raw.pairsam.gz", sample = SAMPLES)
 
-# peak_pairs = expand("peaks-{genome}/{sample}.final.pairs.gz", sample = SAMPLES, genome = genome)
-
-# all_pairs = expand("pairs-{genome}/{sample}.valid.pairs.gz", sample = SAMPLES, genome = genome)
-deup_pairs = expand("filtered-{genome}/{sample}.dedup.pairs.gz", sample = SAMPLES, genome = genome)
+peak_pairs = expand("peaks-{genome}/{sample}.final.pairs.gz", sample = SAMPLES, genome = genome)
+all_pairs = expand("filtered-{genome}/{sample}.valid.pairs.gz", sample = SAMPLES, genome = genome)
+# deup_pairs = expand("filtered-{genome}/{sample}.dedup.pairs.gz", sample = SAMPLES, genome = genome)
 # cool = expand("coolers-{genome}/{sample}.{cool_bin}.cool", sample = SAMPLES, cool_bin = cool_bin, genome = genome)
 
 # TARGETS.extend(bam) ##append all list to 
@@ -48,8 +47,6 @@ localrules: all
 
 rule all:
     input: TARGETS
-
-
 
 
 rule bwa_align:
@@ -76,8 +73,9 @@ rule prase_bam_no_flip: ## no flip to makesure the R1 R2 position for the peak c
     threads: 5
     shell:
         """
+        module load samtools ## set the min-mapq as 10
         pairtools parse -c {chromsizes}  \
-        --assembly {genome} --min-mapq 1 \
+        --assembly {genome} --min-mapq 10 \
         --max-molecule-size 2000 --max-inter-align-gap 20 --drop-readid \
         --walks-policy mask --no-flip --drop-seq --drop-sam  -o {output} {input}  
         """
@@ -96,7 +94,7 @@ rule stat1 :
 rule flip_pairsam_sort:
     input:  "pairs-{genome}/{sample}.raw.pairsam.gz"
     output: "pairs-{genome}/{sample}.sorted.pairs.gz"
-    message: "flip to filted {input} "
+    message: "flip and sort {input} "
     threads: 8
     shell:
         """
@@ -107,28 +105,29 @@ rule flip_pairsam_sort:
 
 rule dedup_pairs:
     input:  "pairs-{genome}/{sample}.sorted.pairs.gz"
-    output: "filtered-{genome}/{sample}.dedup.pairs.gz"
+    output: "filtered-{genome}/{sample}.dedup.pairs.gz" ,"filtered-{genome}/{sample}.dedup.pairs.stat"
     message: "dedup to filted {input} "
     threads: 5
     shell:
         """
-         pairtools dedup --max-mismatch 1 --method max -o {output[0]} {input}
+         pairtools dedup --max-mismatch 1 --method max -o {output[0]} {input} \
+         --output-stats  {output[1]}
         """
 
-rule stat2 :
-    input:  "filtered-{genome}/{sample}.dedup.pairs.gz"
-    output: "filtered-{genome}/{sample}.dedup.pairs.stat"
-    message: "stat1 bam {input} "
-    threads: 5
-    shell:
-        """
-        pairtools stats -o {output} {input}  
-        """
+# rule stat2 :
+#     input:  "filtered-{genome}/{sample}.dedup.pairs.gz"
+#     output: 
+#     message: "stat1 bam {input} "
+#     threads: 5
+#     shell:
+#         """
+#         pairtools stats -o {output} {input}  
+#         """
 
 
 rule enzyme_fragment_detection:
-    input:  "pairs-{genome}/{sample}.selected.pairs.gz"
-    output: valid = "pairs-{genome}/{sample}.valid.pairs.gz", same_f = "pairs-{genome}/{sample}.samefrag.pairs.gz"
+    input:  "filtered-{genome}/{sample}.dedup.pairs.gz"
+    output: valid = "filtered-{genome}/{sample}.valid.pairs.gz", same_f = "filtered-{genome}/{sample}.samefrag.pairs.gz"
     message: "selected pairsam {input} "
     threads: 5
     shell:
@@ -138,32 +137,41 @@ rule enzyme_fragment_detection:
         --output-rest {output[valid]} -o {output[same_f]} 
         """
 
+rule stat2 :
+    input:  valid = "filtered-{genome}/{sample}.valid.pairs.gz", same_f = "filtered-{genome}/{sample}.samefrag.pairs.gz"
+    output: "filtered-{genome}/{sample}.valid.pairs.stat",  "filtered-{genome}/{sample}.samefrag.pairs.stat"
+    message: "stat1 bam {input} "
+    threads: 5
+    shell:
+        """
+        pairtools stats -o {output[0]} {input[0]}
+        pairtools stats -o {output[1]} {input[1]}    
+        """
 
 
 
+# rule R2peak_pairs_enzyme_fragment_dedup:
+#     input:  "peaks-{genome}/{sample}.sorted.pairs.gz"
+#     output: "peaks-{genome}/{sample}.final.pairs.gz"
+#     message: "flip to filted {input} "
+#     threads: 8
+#     shell:
+#         """
+#          pairtools dedup --max-mismatch 1 --method max {input} | \
+#          pairtools restrict -f {frag_path} -o {output}
+#         """
 
-
-
-rule R2peak_pairs_enzyme_fragment_dedup:
-    input:  "peaks-{genome}/{sample}.sorted.pairs.gz"
+rule R2peak_pairs_sort_mapping_filter:
+    input:  "pairs-{genome}/{sample}.raw.pairsam.gz"
     output: "peaks-{genome}/{sample}.final.pairs.gz"
     message: "flip to filted {input} "
     threads: 8
     shell:
         """
-         pairtools dedup --max-mismatch 1 --method max {input} | \
-         pairtools restrict -f {frag_path} -o {output}
-        """
-
-rule R2peak_pairs_sort_mapping_filter:
-    input:  "pairs-{genome}/{sample}.raw.pairsam.gz"
-    output: "peaks-{genome}/{sample}.sorted.pairs.gz"
-    message: "flip to filted {input} "
-    threads: 8
-    shell:
-        """
          pairtools select '(pair_type=="UU") or (pair_type=="UR") or (pair_type=="RU")' {input} | \
-         pairtools sort  --nproc 8  --memory 15G  -o {output}
+         pairtools sort  --nproc 8  --memory 15G | \
+          dedup --max-mismatch 1 --method max | \
+          pairtools restrict -f {frag_path} -o {output}
         """
 
 # rule sort_pairsam:
