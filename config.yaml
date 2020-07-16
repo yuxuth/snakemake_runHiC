@@ -1,7 +1,7 @@
 
-BWA_INDEX: ~/almanlab/genome_ref/hg38_BWA_index/hg38.fa
-frag_path: /home/gb148/almanlab/genome_ref/hg38.hindiii.bed
-chromsizes : ~/almanlab/genome_ref/hg38_BWA_index/hg38.chrom.sizes
+BWA_INDEX: ~/data/Index/hg38_BWA_index/hg38.fa
+frag_path: ~/data/Index/hg38_BWA_index/hg38.hindiii.bed
+chromsizes : ~/data/Index/hg38_BWA_index/hg38.chrom.sizes
 genome: hg38
 cool_bin: 10000
 
