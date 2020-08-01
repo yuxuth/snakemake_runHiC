@@ -25,7 +25,7 @@ cool_bin = config['cool_bin']
 
 peak_pairs = expand("peaks-{genome}/{sample}.final.pairs.gz", sample = SAMPLES, genome = genome)
 all_pairs = expand("filtered-{genome}/{sample}.valid.pairs.gz", sample = SAMPLES, genome = genome)
-cool = expand( "coolers-{genome}/{sample}.{cool_bin}.cool", sample = SAMPLES, genome = genome ,cool_bin = cool_bin)
+# cool = expand( "coolers-{genome}/{sample}.{cool_bin}.cool", sample = SAMPLES, genome = genome ,cool_bin = cool_bin)
 # deup_pairs = expand("filtered-{genome}/{sample}.dedup.pairs.gz", sample = SAMPLES, genome = genome)
 # cool = expand("coolers-{genome}/{sample}.{cool_bin}.cool", sample = SAMPLES, cool_bin = cool_bin, genome = genome)
 
@@ -44,19 +44,40 @@ stat2 = expand("filtered-{genome}/{sample}.valid.pairs.stat", sample = SAMPLES, 
 TARGETS.extend(stat1)
 TARGETS.extend(stat2)
 TARGETS.extend(peak_pairs)
-TARGETS.extend(cool)
+# TARGETS.extend(cool)
 
 
 localrules: all
 
 rule all:
     input: TARGETS
+        
+
+rule cut_adaptor:
+    input:
+        r1 = lambda wildcards: FILES[wildcards.sample]['R1'],
+        r2 = lambda wildcards: FILES[wildcards.sample]['R2']
+    output: 
+        "00_tac_trimed_fq/{sample}_r1.fq.gz", 
+        "00_tac_trimed_fq/{sample}_r2.fq.gz"
+        r2 = lambda wildcards: FILES[wildcards.sample]['R2']
+    threads: 12
+    message: "cutadapt {input}: {threads} threads"
+    log:
+         "00_log/{sample}.cutadapt"
+    shell:
+        """
+        cutadapt -j {threads} -e 0 --no-indels 
+        -action none  --discard-untrimmed \
+        -g ^TAC \
+          -o {output[0]} -p {output[1]}  {input[0]} {input[1]}  2> {log} 
+        """
 
 
 rule bwa_align:
     input:
-        r1 = lambda wildcards: FILES[wildcards.sample]['R1'],
-        r2 = lambda wildcards: FILES[wildcards.sample]['R2']
+        r1 ="tac_trimed_fq/{sample}_r1.fq.gz",
+        r2 = "tac_trimed_fq/{sample}_r2.fq.gz"
     output: "01_bam/{sample}.bam"
     threads: 24
     message: "bwa {input}: {threads} threads"
@@ -68,6 +89,7 @@ rule bwa_align:
         module load samtools
         bwa mem  -SP -t {threads} {BWA_INDEX} {input} | samtools view -bS - > {output}  2> {log}
         """
+
 
 
 rule prase_bam_no_flip: ## no flip to makesure the R1 R2 position for the peak calling
@@ -174,8 +196,7 @@ rule R2peak_pairs_sort_mapping_filter:
         """
          pairtools select '(pair_type=="UU") or (pair_type=="UR") or (pair_type=="RU")' {input} | \
          pairtools sort  --nproc 8  --memory 15G | \
-          dedup --max-mismatch 1 --method max | \
-          pairtools restrict -f {frag_path} -o {output}
+          pairtools dedup --max-mismatch 1 --method max  -o {output}
         """
 
 # rule sort_pairsam:
