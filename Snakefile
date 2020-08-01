@@ -60,14 +60,13 @@ rule cut_adaptor:
     output: 
         "00_tac_trimed_fq/{sample}_r1.fq.gz", 
         "00_tac_trimed_fq/{sample}_r2.fq.gz"
-        r2 = lambda wildcards: FILES[wildcards.sample]['R2']
     threads: 12
     message: "cutadapt {input}: {threads} threads"
     log:
          "00_log/{sample}.cutadapt"
     shell:
         """
-        cutadapt -j {threads} -e 0 --no-indels 
+        cutadapt -j {threads} -e 0 --no-indels \
         -action none  --discard-untrimmed \
         -g ^TAC \
           -o {output[0]} -p {output[1]}  {input[0]} {input[1]}  2> {log} 
@@ -76,8 +75,8 @@ rule cut_adaptor:
 
 rule bwa_align:
     input:
-        r1 ="tac_trimed_fq/{sample}_r1.fq.gz",
-        r2 = "tac_trimed_fq/{sample}_r2.fq.gz"
+        r1 ="00_tac_trimed_fq/{sample}_r1.fq.gz",
+        r2 = "00_tac_trimed_fq/{sample}_r2.fq.gz"
     output: "01_bam/{sample}.bam"
     threads: 24
     message: "bwa {input}: {threads} threads"
