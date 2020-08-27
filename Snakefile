@@ -23,9 +23,9 @@ cool_bin = config['cool_bin']
 # bam = expand("01_bam/{sample}.bam", sample = SAMPLES)
 # raw_pairsam = expand("pairs-hg38/{sample}/{sample}.raw.pairsam.gz", sample = SAMPLES)
 
-peak_pairs = expand("peaks-{genome}/{sample}.final.pairs.gz", sample = SAMPLES, genome = genome)
+# peak_pairs = expand("peaks-{genome}/{sample}.final.pairs.gz", sample = SAMPLES, genome = genome)
 all_pairs = expand("filtered-{genome}/{sample}.valid.pairs.gz", sample = SAMPLES, genome = genome)
-# cool = expand( "coolers-{genome}/{sample}.{cool_bin}.cool", sample = SAMPLES, genome = genome ,cool_bin = cool_bin)
+cool = expand( "coolers-{genome}/{sample}.{cool_bin}.cool", sample = SAMPLES, genome = genome ,cool_bin = cool_bin)
 # deup_pairs = expand("filtered-{genome}/{sample}.dedup.pairs.gz", sample = SAMPLES, genome = genome)
 # cool = expand("coolers-{genome}/{sample}.{cool_bin}.cool", sample = SAMPLES, cool_bin = cool_bin, genome = genome)
 
@@ -35,15 +35,15 @@ all_pairs = expand("filtered-{genome}/{sample}.valid.pairs.gz", sample = SAMPLES
 # cool40k = expand("coolers-hg38_40k/{sample}.cool", sample = SAMPLES)
 
 
-# TARGETS.extend(all_pairs)
-# TARGETS.extend(cool)
+TARGETS.extend(all_pairs)
+TARGETS.extend(cool)
 # TARGETS.extend(deup_pairs)
 
 stat1 = expand("pairs-{genome}/{sample}.raw.pairsam.stat", sample = SAMPLES, genome = genome)
 stat2 = expand("filtered-{genome}/{sample}.valid.pairs.stat", sample = SAMPLES, genome = genome)
 TARGETS.extend(stat1)
 TARGETS.extend(stat2)
-TARGETS.extend(peak_pairs)
+# TARGETS.extend(peak_pairs)
 # TARGETS.extend(cool)
 
 
@@ -53,30 +53,11 @@ rule all:
     input: TARGETS
         
 
-rule cut_adaptor:
-    input:
-        r1 = lambda wildcards: FILES[wildcards.sample]['R1'],
-        r2 = lambda wildcards: FILES[wildcards.sample]['R2']
-    output: 
-        "00_tac_trimed_fq/{sample}_r1.fq.gz", 
-        "00_tac_trimed_fq/{sample}_r2.fq.gz"
-    threads: 12
-    message: "cutadapt {input}: {threads} threads"
-    log:
-         "00_log/{sample}.cutadapt"
-    shell:
-        """
-        cutadapt -j {threads} -e 0 --no-indels \
-        -action none  --discard-untrimmed \
-        -g ^TAC \
-          -o {output[0]} -p {output[1]}  {input[0]} {input[1]}  2> {log} 
-        """
-
 
 rule bwa_align:
     input:
-        r1 ="00_tac_trimed_fq/{sample}_r1.fq.gz",
-        r2 = "00_tac_trimed_fq/{sample}_r2.fq.gz"
+        r1 = lambda wildcards: FILES[wildcards.sample]['R1'],
+        r2 = lambda wildcards: FILES[wildcards.sample]['R2']
     output: "01_bam/{sample}.bam"
     threads: 24
     message: "bwa {input}: {threads} threads"
@@ -173,40 +154,6 @@ rule stat2 :
         pairtools stats -o {output[1]} {input[1]}    
         """
 
-
-
-# rule R2peak_pairs_enzyme_fragment_dedup:
-#     input:  "peaks-{genome}/{sample}.sorted.pairs.gz"
-#     output: "peaks-{genome}/{sample}.final.pairs.gz"
-#     message: "flip to filted {input} "
-#     threads: 8
-#     shell:
-#         """
-#          pairtools dedup --max-mismatch 1 --method max {input} | \
-#          pairtools restrict -f {frag_path} -o {output}
-#         """
-
-rule R2peak_pairs_sort_mapping_filter:
-    input:  "pairs-{genome}/{sample}.raw.pairsam.gz"
-    output: "peaks-{genome}/{sample}.final.pairs.gz"
-    message: "flip to filted {input} "
-    threads: 8
-    shell:
-        """
-         pairtools select '(pair_type=="UU") or (pair_type=="UR") or (pair_type=="RU")' {input} | \
-         pairtools sort  --nproc 8  --memory 15G | \
-          pairtools dedup --max-mismatch 1 --method max  -o {output}
-        """
-
-# rule sort_pairsam:
-#     input:  "pairs-{genome}/{sample}/{sample}.raw.pairsam.gz"
-#     output: "pairs-{genome}/{sample}/{sample}.sort.pairsam.gz"
-#     message: "sort pairsam {input} "
-#     threads: 8
-#     shell:
-#         """
-#         pairtools sort  --nproc 8  --memory 20G  -o {output} {input}  
-#         """
 
 
 
