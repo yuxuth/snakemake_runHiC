@@ -1,6 +1,6 @@
 
 BWA_INDEX: ~/data/Index/hg38_BWA_index/hg38.fa
-frag_path: ~/data/Index/hg38_BWA_index/hg38_cviqi.bed
+frag_path: ~/data/Index/fragment/hg38_dpnII.bed
 chromsizes : ~/data/Index/hg38_BWA_index/hg38.chrom.sizes
 genome: hg38
 cool_bin: 10000
