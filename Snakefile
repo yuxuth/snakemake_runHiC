@@ -67,7 +67,7 @@ rule cut_adaptor:
     shell:
         """
         cutadapt -j {threads} -e 0 --no-indels \
-        -action none  --discard-untrimmed \
+        --action none  --discard-untrimmed \
         -g ^TAC \
           -o {output[0]} -p {output[1]}  {input[0]} {input[1]}  2> {log} 
         """
